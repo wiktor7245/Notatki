@@ -379,4 +379,17 @@ Główne cechy widoku:
 * ułatwia zarządzanie uprawnieniami użytkowników,
 * widok nie może dotyczyć tabel tymczasowych,
 * widoki nie są usuwane razem z tabelą - trzeba je usunąć oddzielnie,
-* można dla nich tworzyć tzw, wyzwalacze
+* można dla nich tworzyć tzw, wyzwalacze (ang. triggers, procedury wykonywane automatycznie jako reakcja na pewne zdarzenia w tabeli bazy danych),
+* widoki pamiętają ograniczenia obowiązujące w tabelach bazowych,
+* możliwe jest (z pewnymi ograniczeniami) modyfikowanie danych w tabelach bazowych poprzez widok,
+* definicja widoku nie może zawierać order by (chyba,że zawiera top), compute i into.
+
+Polecenia tworzące, zmieniające i usuwające widok:
+* Creare view,
+* Alter view,
+* Drop view.
+
+Wyświetlanie informacji o istniejących widokach:
+
+    Select *
+    From INFORMATION_SCHEMA.VIEW_TABLE_USAGE;
