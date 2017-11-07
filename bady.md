@@ -370,7 +370,9 @@ Stosunek liczby pracowników na oszczególnych stanowiskach do liczby wszystkich
 :heavy_exclamation_mark:**Uwaga!** Funkcje analityczne pozwalają na wykonanie powyższego zapytania w wydajniejszy sposób.
 ## Widoki
 Widok (perspektywa, ang (view)) jest nazwanym, zapisanym po stronie serwera zapytaniem select, którego wynik może być wielokronie odczytywany.
+
 :heavy_exclamation_mark: Widok nie zawiera kopii danych
+
 :information_source:  Zasięg widoku - obiekt zapisany na stałe w bazie danych.
 
 Główne cechy widoku:
