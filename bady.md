@@ -395,3 +395,412 @@ Wyświetlanie informacji o istniejących widokach:
 
     Select *
     From INFORMATION_SCHEMA.VIEW_TABLE_USAGE;
+    
+Wyświetlanie definicji widoków:
+  
+    SELECT TABLE_NAME,
+                VIEW_DEFINITION,
+    FROM INFORMATION.SCHEMA.VIEWS;
+    
+Wyświetlanie listy obiektów powiązanych z danym widokiem:
+    
+    EXEC sp_demands nazwa_widoku;
+
+#### Przykład 1
+Utworzenie widoku wyświetlającego informacje o adiunktach (zwróć uwagę gdzie są definiowane nazwy zwracanych  kolumn):
+
+    CREATE VIEW Adiunkci(nazwisko, staz, zarobki)
+    AS
+    (
+      SELECT nazwisko,
+                  DATEDIFF(YEAR, zatrudniony, GETDATE()),
+                  placa + ISNULL(dod_funkc, 0)
+      FROM Pracownicy
+      WHERE stanowisko = 'adiunkt'
+    );
+    GO
+    
+  :information_source: Polecenie CREATE VIEW musi byc jedyną instrukcją w serii zapytań (ang. branch), zatem zaraz po nim najbezpieczniej jest użyć polecenia GO (które nota bene nie należy do t-sql).
+  
+  Powyższy widokmożna odczytać za pomocą:
+  
+      Select *
+      From Adiunkci;
+      
+  Modyfikacja danych (nazwiska) w widoku (:heavy_exclamation_mark:modifikowana jest źródłowa tabela Pracownicy):
+      
+      UPDATE Adiunkci
+      SET nazwisko = 'Fiołkowska-Bąk'
+      WHERE nazwisko = 'Fiołkowska';
+      
+:heavy_exclamation_mark:Tutaj nie jest możliwa modyfikacja danych w widoku, ponieważ kolumny są wyliczane w widoku:
+
+      UPDATE Adiunkci
+      SET  zarobki = 1.1 * zarobki;
+      
+:heavy_exclamation_mark:Tutaj nie jest możliwe dodanie danych w widoku, ponieważ kolumny są wyliczane w widoku:
+
+    INSERT INTO Adiunkci VALUES('Bogucki, 1, 2000);
+    
+:information_source: Po modyfikacji tabeli Pracownicy przywracamy jej pierwotny stan poprzez zmianę w widoku:
+
+    UPDATE Adiunkci
+    SET nazwisko = 'Fiokłkowska'
+    WHERE nazwisko = 'Fiołkowska-Bąk';
+    
+## Tabele tymczasowe
+
+Tabele tymczasowe (lokalne) są tworzone w bazie tempdb. Taka tabela jest obliczana tylko raz i jest usuwana automatycznie po zakończeniu sesji. Nazwa tabeli poprzedzona jest #.
+
+:information_source: Zasięg tabeli - bieżąca sesja (usuwana po rozłączeniu).
+
+#### Przykład 2
+Utworzenie tabeli tymczasowej z informacjami o adiunktach:
+
+    CREATE TABLE #Adiunkci(
+        nazwisko VARCHAR(50),
+        staz INT,
+        zarobki MONEY
+    );
+    
+    INSERT INTO #Adiunkci
+      SELECT nazwisko,
+                  DATEDIFF(YEAR, zatrudniony, GETDATE()),
+                  placa + ISNULL(dod_funkc, 0)
+      FROM Pracownicy
+      WHERE stanowisko = 'adiunkt';
+      
+lub w inny sposób:
+  
+    SELECT nazwisko,
+                DATEDIFF(YEAR, zatrudniony, GETDATE()) staz,
+                placa + ISNULL(dod_funkc, 0)
+    INTO #Adiunkci
+    FROM Pracownicy
+    WHERE stanowisko = 'adiunkt';
+    
+Odczyt danych z tabeli tymczasowej:
+
+    Select *
+    From #Adiunkci;
+    
+Modyfikacja tabeli tymczasowej:
+
+    UPDATE #Adiunkcki
+    SET nazwisko = 'Fiołkowska-Bąk'
+    WHERE nazwisko = 'Fiołkowska';
+    
+W porównaniu z widokiem, tutaj jest możliwość modyfikacji zarobków i powoduje zmianę w tabeli tymczasowej:
+
+    UPDATE #Adiunkci
+    SET zarobki = 1.1 * zarobki;
+    
+W porównaniu z widokiem, tutaj możliwe jest wstawienie do wiersza tabeli tymczasowej:
+
+    INSERT INTO #Adiunkci VALUES('Bogucki, 1, 2000);
+
+## Zmienne tablicowe
+
+Zmienna tablicowa to zmienna, która może przechowywać tablicę
+
+:information_source: Zasięg - tylko w ramach skryptu.
+
+#### Przykład 3
+
+Tworzenie zmiennej tablicowej z informacjami o adiunktach i odczyt tej zmiennej (:heavy_exclamation_mark: uwaga, jeden skrypt, wykonyawny w całości):
+
+    DECLARE @Adiunkci TABLE(
+        nazwisko = VARCHAR(50),
+        staz     INT,
+        zarobki  MONEY
+    );
+  
+    INSERT INTO @Adiunkci
+    SELECT nazwisko, 
+           DATEDIFF(YEAR, zatrudniony, GETDATE()), 
+           placa + ISNULL(dod_funkc, 0)
+    FROM   Pracownicy 
+    WHERE  stanowisko = 'adiunkt';
+
+    SELECT * 
+    FROM   @Adiunkci;
+    
+Modyfikacja danych w ww. zmiennej tablicowej:
+
+    DECLARE @Adiunkci TABLE(
+    nazwisko VARCHAR(50),
+    staz     INT,
+    zarobki  MONEY
+    );
+
+    INSERT INTO @Adiunkci
+        SELECT nazwisko, 
+              DATEDIFF(YEAR, zatrudniony, GETDATE()), 
+              placa + ISNULL(dod_funkc, 0)
+        FROM   Pracownicy
+        WHERE  stanowisko = 'adiunkt';
+
+    SELECT * 
+    FROM   @Adiunkci;
+
+    UPDATE @Adiunkci
+    SET    zarobki = 1.1 * zarobki;
+
+    SELECT * 
+    FROM   @Adiunkci;
+    
+## Wspólne wyrażenia tablicowe
+
+Wspólne wyrażenia tablicowe (ang. Common Table Expression, CTE) to wyrażenia ze słowem WITH, po których podajemy nazwę wynikowego zbioru oraz jego definicję za pomocą polecenia SELECT. Do tak zdefiniowanego zbioru możemy odwoływać się tak jak do zwykłej tabeli.
+
+:information_source: Zasięg CTE - zapytanie SELECT
+
+#### Przykład 4
+
+Tworzenie i odczyt CTE o adiunktach:
+
+    WITH CTE_Adiunkci(nazwisko, staz, zarobki)
+    As
+    (
+        SELECT nazwisko,
+                  DATEDIFF(YEAR, zatrudniony, GETDATE()),
+                  placa + ISNULL(dod_funkc, 0)
+        FROM Pracownicy
+        WHERE stanowisko = 'adiunkt'
+    )
+    Select *
+    FROM CTE_Adiunkci;
+    
+W poniższym zapytaniu modyfikacja jest możliwa i w rezultacie modyfikowana jest źródłowa tabela Pracownicy:
+
+    WITH CTE_Adiunkci(nazwisko, staz, zarobki)
+    AS
+    (
+        SELECT nazwisko,
+                    DATEDIFF(YEAR, zatrudniony, GETDATE())
+                    placa + ISNULL(dod_funkc, 0)
+        FROM Pracownicy
+        WHERE stanowisko = 'adiunkt'
+    )
+    UPDATE CTE_Adiunkci
+    SET nazwisko = 'Fiołkowka-Bąk'
+    WHERE nazwisko = 'Fiołkowska';
+    
+:heavy_exclamation_mark: W poniższym zapytaniu **nie jest możliwa** modyfikacja danych, ponieważ kolumna zarobki jest wyliczana:
+
+    WITH CTE_Adiunkci(nazwisko, staz, zarobki)
+    AS
+    (
+        SELECT nazwisko,
+                    DATEDIFF(YEAR, zatrudniony, GETDATE())
+                    placa + ISNULL(dod_funkc, 0)
+        FROM Pracownicy
+        WHERE stanowisko = 'adiunkt'
+    )
+    UPDATE CTE_Adiunkci
+    SET zarobki = 1.1 * zarobki;
+
+:information_source: Po modyfikacji tabeli Pracownicy przywracamy jej pierwotny stan:
+
+    UPDATE Pracownicy
+    SET nazwisko = 'Fiołkowska'
+    WHERE nazwisko = 'Fiołkowska-Bąk';
+    
+### Wykorzystanie do budowania zapytań rekurencyjnych
+
+Schemat zapytania rekurencyjnego:
+
+    WITH CTE_nazwa(nazwa_kolumny [,.. n]
+    AS
+    (
+        definicja_zapytania_CTE --definicja tzw. zapytania zakotwiczonego
+        --(zbiór elementów stanowiących korzeń lub korzenie)
+        
+        UNION ALL
+        
+        definicja_zapytania_CTE --definicja zapytania rekursywnego, odwołującego się do CTE_nazwa 
+    )
+    --zapytanie korzystające z CTE
+    SELECT *
+    FROM CTE_nazwa;
+    
+#### Przykład 5
+
+Zapytanie wyświetla całą hierarchię szef-podwładny w firmie:
+
+    WITH CTE_Podwładni(nazwisko, id, poziom)
+    AS
+    (
+        SELECT nazwisko,         --krok zerowy, zaczynamy od war pocz.
+                    id,                                 --w tym przypadku jest to pracownik ze szczytu hierarchii
+                    0
+        FROM Pracownicy
+        WHERE szef IS NULL
+        
+        UNION ALL             --sumujemy zbiory wynikowe kolejnych kroków rekurencji
+        
+        SELECT P.nazwisko,   --krok n-ty rekurencji, odwołujemy się do CTE_Podwładni z poprzedniego kroku!!!
+                    P.id,
+                    T.poziom +1
+        FROM Pracownicy P
+                    JOIN CTE_Podwładni T
+                        ON P.szef = T.id
+    )
+    SELECT nazwisko,
+                poziom
+    FROM CTE_Podwładni;
+    
+#### Przykład 6
+
+Liczenie silni:
+
+    WITH CTE_Silnia(n, biezacy_iloczyn)
+    AS
+    (
+        SELECT 1,                         -- element początkowy
+                    1
+           
+      UNION ALL                         -- laczymy zbiory wynikowe kolejnych kroków rekurencji
+    
+      SELECT n + 1, 
+                    (n + 1) * biezacy_iloczyn  -- rekursja
+        FROM   CTE_Silnia
+        WHERE  n < 10                     -- terminator
+    )
+    SELECT n, 
+        biezacy_iloczyn
+    FROM   CTE_Silnia;
+    
+## Polecenia DDL (Data Definition Language)
+
+### Tworzenie i usuwanie bazy danych
+
+Instrukcja tworząca bazę danych:
+
+    CREATE DATABASE Nazwa_Bazy_Danych;
+    
+Usunięcie bazy danych:
+  
+    DROP DATABASE Nazwa_Bazy_Danych;
+    
+### Tworzenie i usuwanie schematu:
+
+    CREATE SCHEMA nowy_schemat AUTHORIZATION dbo;
+    
+### Tworzenie tabel
+
+Skrócona składnia polecenia tworzącego tabelę:
+
+      CREATE TABLE nazwa_tabeli
+      (
+          nazwa_atrybutu typ [ograniczenie],
+          nazwa_atrybutu typ [ograniczenie],
+          [ograniczenie],
+          ...
+      );
+      
+Typy danych:
+* numeryczne(dokładne): BIGINT, NUMERIC, BIT, SMALLINT, DECIMAL, SMALLMONEY, INT, TINYINT, MONEY;
+* numeryczne(przybliżone): FLOAT, REAL;
+* daty i czasu: DATE, DATETIMEOFFSET, DATETIME2, SMALLDATETIME, DATETIME, TIME;
+* znakowe: CHAR, VARCHAR, TEXT;
+* binarne: BINARY, VARBINARY, IMAGE;
+* inne: CURSOR, TIMESTAMP,, HIERARCHYID, UNIQUEIDENTIFIER, SQL_VARIANT, XML, TABLE
+
+Ograniczenia:
+* PRIMARY KEY - ograniczenie definiujące klucz podstawowy dla relacji;
+* [FOREIGN KEY] REFERENCES - ograniczenie definiujące, że dany atrybut jest kluczem obcym w relacji;
+* NULL | NOT NULL - ograniczenie weryfikujące, czy wartość może/ nie może być pusta;
+* CHECK - ograniczenie zawęża dziedzinę atrybutu;
+* UNIQUE - wymusza unikalne wartości dla atrybutu;
+
+DEFAULT - nadawanie atrybutowi wartości domyślnej
+
+IDENTITY - tworzenie automatycznego identyfikatora (w MSSQL)
+* Często definiując tabele chcemy, aby identyfikator krotek był automatycznie tworzony przez silnik bazy danych. W ten sposób wstawiając dane do tabeli nie musimy sprawdzać, czy wartość identyfikatora krotki, którą chcemy dodać jest unikalna. W przypadku MSSQL aby uzyskać automatyczne tworzenie identyfikatora tabeli wystarczy, że w definicji tabeli przy polu, które chcemy aby było kluczem głównym dodamy ograniczenie IDENTITY(START, KROK), gdzie parametr START określa od jakiej wartości chcemy rozpocząć numerowanie, KROK określa o jaką wartość zwiększane będą wartości atrybutu w kolejnych krotkach.
+
+#### Przykład 1
+
+    CREATE TABLE Nauczyciele
+    (
+      id       INT NOT NULL PRIMARY KEY,
+      nazwisko VARCHAR(30) CHECK (nazwisko LIKE '[A-Z]%'),
+      dyzur    VARCHAR(30) CHECK (dyzur IN ('pon', 'wt', 'sr', 'czw', 'pt')),
+      zarobek  FLOAT,
+      CHECK (zarobek >= 1000)
+    );
+
+    CREATE TABLE Przedmioty
+    (
+      id_przed    INT IDENTITY(1,1) PRIMARY KEY,
+      nazwa       VARCHAR(50),
+      prowadzacy  INT REFERENCES Nauczyciele(id),
+      rodzaj      VARCHAR(7) CHECK (rodzaj IN ('obowiazkowy', 'obieralny')) DEFAULT 'obowiazkowy',
+      rok_studiow INT
+    );
+    
+Ograniczeniom można (a nawet należy) nadawać włąsne nazwy:
+
+    CREATE TABLE Nauczyciele
+    (
+      id       INT NOT NULL CONSTRAINT pk_naucz_id PRIMARY KEY,
+      nazwisko VARCHAR(30) CONSTRAINT ck_naucz_nazw CHECK (nazwisko LIKE '[A-Z]%'),
+      dyzur    VARCHAR(30) CHECK (dyzur IN ('pon', 'wt', 'sr', 'czw', 'pt')),
+      zarobek  FLOAT,
+      CONSTRAINT ck_naucz_zarob CHECK (zarobek >= 1000)
+    );
+    
+### Modyfikacja tabeli
+
+Istniejącą tabelę możemy zmodyfikować, tzn.:
+* dodać, usunąć lub zmodyfikować atrybuty,
+* dodać lub usunąć ograniczenia.
+
+Skrócona składnia polecenia:
+
+    ALTER TABLE nazwa_tabeli <operacja> [, <operacja> ...];
+    
+gdzie:
+
+    <operacja> = 
+        ADD <definicja atrybutu> - dodanie nowego atrybutu (kolumny)
+        ADD CONSTRAINT <ograniczenie> - dodanie ograniczenia
+        ALTER [COLUMN] <definicja atrybutu> - modyfikacja atrybutu
+        DROP COLUMN nazwa_atrybutu - usunięcie atrybutu
+        DROP CONSTRAINTnazwa_ograniczenia - usunięcie ograniczenia
+        
+#### Przykład 2
+
+Dodanie atrybutu data_urodz do tabeli Nauczyciele:
+
+    ALTER TABLE Nauczyciele
+    ADD data_urodz SMALLDATETIME;
+    
+Dodanie ograniczenia na atrybucie rok_studiów:
+
+    ALTER TABLE Nauczyciele
+    ADD CONSTRAINT ck_stu_rok CHECK (rok_studiow IN (1, 2, 3, 4, 5));
+    
+Usunięcie z tabeli Nauczyciele ograniczenia CHECK na nazwisku:
+
+    ALTER TABLE Nauczyciele
+    DROP CONSTRINT ck_naucz_nazw;
+    
+### Usuwanie tabel
+
+Aby usunąć tabele należy zastosować polecenie:
+
+    DROP TABLE Nazwa_tabeli;
+    
+lub lepiej:
+    
+    IF OBJECT_ID('Nazwa_tabeli', 'U') IS NOT NULL 
+    DROP TABLE Nazwa_tabeli'
+    
+Polecenie usuwa tabelę, wszystkie ograniczenia, które zostały dla niej utworzone i wszystkie dane w niej przechowywane.
+
+#### Przykład 3
+
+    DROP TABLE Nauczyciele;
+    
+:heavy_exclamation_mark: Należy pamiętać, że nie możemy usunąć tabeli, do której isnieją powiązania (klucze obce) bez uprzedniego usunięcia powiązań lub całych tabel, które zawierają odwołania do usuwanej tabeli.
