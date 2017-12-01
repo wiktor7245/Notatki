@@ -8,4 +8,4 @@
  * Projekt - ppr
 
 
- * Usunąć center w projekcie na workshopy i zobaczyć co tam jest nie tak
+ * Usunąć center w projekcie na workshopy
