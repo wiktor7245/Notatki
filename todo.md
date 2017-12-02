@@ -8,4 +8,4 @@
 * Posprzątanie
 * Projekt - ppr
 * Usunąć center w projekcie na workshopy
-* validator.w3.org/
+* validator.w3.org/n
