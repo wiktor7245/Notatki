@@ -804,3 +804,465 @@ Polecenie usuwa tabelę, wszystkie ograniczenia, które zostały dla niej utworz
     DROP TABLE Nauczyciele;
     
 :heavy_exclamation_mark: Należy pamiętać, że nie możemy usunąć tabeli, do której isnieją powiązania (klucze obce) bez uprzedniego usunięcia powiązań lub całych tabel, które zawierają odwołania do usuwanej tabeli.
+
+## Polecenia DML (Data Manipulation Language)
+
+Na DML składają się cztery podstawowe komendy:
+
+* SELECT - wyświetla wiersze z wybranych tabel spełniające podane warunki,
+* INSERT - wstawia nowy wiersz do tabeli,
+* UPDATE - modyfikuje wartość instniejącego wiersza w tabeli,
+* DELETE/TRUNCATE - usuwa wiersze z tabeli.
+
+Polecenia te implementują w bazie danych CRUD'a.
+
+Ponadto, mamy również polecenie MERGE, które jest odpowiedzialne za scalanie.
+
+### SELECT ... INTO
+
+Umożliwia umieszczenie wyniku polecenia SELECT w nowo utworzonej tabeli:
+
+    SELECT atr1, atr2, ...
+    INTO Nowa_tabela
+    FROM Tabela
+    WHERE ...;
+
+### INSERT INTO
+
+Umożliwia wstawienie jednego lub wielu wierszy do tabeli. Uproszczona składnia:
+
+* Wstawienie pojedyńczego wiersza:
+
+    INSERT INTO Nazwa_tabeli [(atrybut, atrybut, ...)]
+    VALUES (wartosc, wartosc, ...);
+
+* Wstawienie wielu wierszy:
+
+    INSERT INTO Nazwa_tabeli [(atrybut, atrybut, ...)]
+    VALUES
+        (wartosc, wartosc, ...),
+        (wartosc, wartosc, ...),
+        ...
+        (wartosc, wartosc, ...);
+
+* Wstawienie wierszy pobranych z tabeli:
+
+    INSERT INTO Nazwa_tabeli
+        SELECT ...
+
+#### Przykład 1
+
+Wstawienie pojedyńczego wiersza:
+
+    INSERT INTO Nauczyciele(nazwisko, stanowisko, pensja) 
+    VALUES ('Kościuszko', 'stażysta', 1200);
+
+#### Przykład 2  
+
+Listę atrybutów można pominąć, jeżeli wstawiane wartośći podane są w kolejnośći zgodnej z kolejnością arybutów w tabeli:
+
+    INSERT INTO Nauczyciele
+    VALUES ('Kosciuszko','stazysta',1200);
+
+#### Przykład 3
+
+Można wstawić do tabeli również dane pobrane z innej tabeli za pomocą SELECT:
+
+    INSERT INTO Nauczyciele2006(nazwisko)
+        SELECT nazwisko
+        From nauczyciele
+        WHERE rok_zatrudnienia = 2006;
+
+### UPDATE
+
+Umożliwia modyfikację danych w tabeli. Uproszczona składnia:
+
+    UPDATE Nazwa_tabeli
+    SET atrybut_1 = wartosc_1
+        ...
+        atrybut_n = wartosc_n
+    [WHERE warunki];
+
+Modyfikowanie tabeli na podstawie danych z innej tabeli:
+
+    UPDATE
+        Tab_A
+    SET
+        Tab_A.col1 = Tab_B.col1,
+        Tab_A.col2 = Tab_B.col2,
+    FROM
+        TabelaGlowna AS Tab_A
+        INNER JOIN TabelaDruga AS Tab_B
+            ON Tab_A.id = Tab_B.id
+    WHERE Tab_A.col12 = 'value';
+
+:heavy_exclamation_mark: Jeżeli nie zastosujemy WHERE, zmianie ulegną wszystkie wiersze w relacji.
+
+#### Przykład 4
+
+Poniższy przykład zwiększa wszystkim nauczycielom dyplomowanym pensję o 200 zł.
+
+    UPDATE nauczyciele
+    SET pensja = pensja + 200
+    WHERE stanowisko = 'dyplomowany';
+
+### DELETE
+
+Usuwa wybrane wiersze z tabeli:
+
+    DELETE FROM Tabela
+    [WHERE warunki];
+
+#### Przykład 5
+
+Usuwamy wszystkich nauczycieli o nazwisku 'Nowak';
+
+    DELETE FROM Nauczyciele
+    WHERE nazwisko = 'Nowak';
+
+:heavy_exclamation_mark: Należy zawsze stosować WHERE, wskazujący na wiersze, które mają zostać usunięte, najlepiej poprzez wskazanie ich kluczy podstawowych.
+
+### ON DELETE
+
+Domyślnie niemożliwe jest usunięcie krotek, do których odwołują się krotki innych tabeli poprzez klucz obcy. Można to zmienić - jeżeli przy klauzuli definiującej klucz obcy umieszczono dyrektywę ON DELETE CASCADE, wówczas usunięcie wierszy spowoduje kaskadowe usunięcie wszystkich powiązanych z nimi wierszy. Aby podczas usuwania krotki w powiązanych tabelach zamienić wartość klucza obcego na wartość nieokreśloną, należy posłużyć się dyrektywą ON DELETE SET NULL. Inna możliwość to ustawienie wartości domyślnej - ON DELETE SET DEFAULT.
+
+#### Przykład 6
+
+Usunięcie nauczyciela spowoduje ustawienie wartości pustej w kolumnie prowadzący dla wszystkich powiązanych z nim przedmiotów:
+
+   CREATE TABLE Przedmioty
+        (
+            id_przed    INT IDENTITY(1,1) PRIMARY KEY,
+            nazwa       VARCHAR(50),
+            prowadzacy  INT REFERENCES Nauczyciele(id) ON DELETE SET NULL,
+            rodzaj      VARCHAR(7) CHECK (rodzaj IN ('obowiazkowy', 'obieralny')) DEFAULT 'obowiazkowy',
+            rok_studiow INT
+        ); 
+
+### TRUNCATE
+
+Polecenie to działa podobnie jak DELETE bez klauzuli WHERE, z tym nie zapisuje logów dotyczących usunięcia konkrenych rzeczy. Polecenie to korzysta ze znacznie mniejszych zasobów systemowych oraz logów tranzakcyjnych. Z najważniejszych ograniczeń należy wspomnieć o braku możliwości wyczyszczenia tabeli tym poleceniem, jeżeli dana tabela ma odniesienia typu FOREIGN KEY z innych tabel.
+
+### MERGE
+
+Polecenie to jest połączeniem INSERT, UPDATE I DELETE - powoduje wstawienie, zmodyfikowanie lub usunięcie wierszy w jedenej tabeli na podstawie złączenia z tabelą źródłową. W ten sposób można synchronizować tabele.
+
+#### Przykład 4
+
+Poniższe polecenie scala tabele Towary i Towary_AGD do tabeli Towary - istniejące wiersze (dokładnie - cena) w tabeli Towary zostają zaktualizowane na podstawie danych w tabeli Towary_AGD, a brakujące zostają wstawione.
+
+    MERGE Towary
+    USING Towary_AGD
+    ON (Towary.id_towaru = Towary_AGD.id)
+    WHEN MATCHED THEN
+        UPDATE SET Towary.cena = Towary_AGD.cena
+    WHEN NOT MATCHED THEN
+        INSERT (id_towaru, cena, nazwa, kategoria)
+        VALUES (Towary_AGD.id, Towary_AGD.cena,
+        Towary_AGD.nazwa, 'AGD')
+    OUTPUT deleted.*,inserted.*;
+
+## Projektowanie baz - model ER
+
+    http://www.staff.amu.edu.pl/~mwisla/BAD210/W03%20Projektowanie%20baz.pdf
+
+## Skrypty i procedury
+
+### Zmienne
+
+**Zmienna lokalna**
+
+Nazwa zmiennej lokalnej zaczyna się od znaku @.
+
+    DECLARE @x INT; --deklaracja
+    SET @x = 4;     --przypisanie wartosci
+
+    SELECT *
+    FROM PRACOWNICY
+    WHERE id_prac = @x; --uzycie zmiennej
+
+    GO
+
+#### Przykład 1
+
+Do wyświetlania wartości zmiennej można użyć funkcji PRINT
+
+Podstawienie wyniku SELECT pod zmienną
+
+    DECLARE @max MONEY;
+    SET @max = (SELECT MAX(zarobki)
+                FROM Pracownicy);
+    
+    PRINT @max;
+
+    GO
+
+lub
+
+    DECLARE @max MONEY;
+    SELECT @max = MAX(zarobki)
+                FROM Pracownicy;
+
+    PRINT @max;
+
+    GO
+
+**Zmienna typu tablicowego**
+
+#### Przykład 2
+
+    DECLARE @tab TABLE
+    (
+        nazw VARCHAR(20),
+        stanow VARCHAR(20)
+    );
+
+    INSERT INTO @tab
+        SELECT nazwisko,
+                stanowisko
+        FROM Pracownicy;
+    
+    SELECT *
+    FROM @tab;
+    
+    GO
+
+**Zapytanie tworzone dynamicznie**
+
+#### Przykład 3
+
+    DECLARE @nazwa VARCHAR(20);
+    SET @nazwa = 'Pracownicy';
+    EXEC ('SELECT * FROM' + @nazwa);
+
+**Zmienna systemowa**
+
+Zaczynają się od @@
+
+#### Przykład 4
+
+Zmienna systemowa @@ROWCOUNT przechowuje liczbę wierszy ostatniego polecenia SQL.
+
+    SELECT *
+    FROM Pracownicy;
+
+    SELECT @@ROWCOUNT AS 'liczba wierszy ostatniego polecenia SQL';
+
+#### Przykład 5
+
+Zmienna systemowa @@ERROR przechowuje numer ostatniego błędu.
+
+    INSERT INTO Pracownicy VALUES ('zla wartosc');
+    SELECT @@ERROR AS 'numer bledu';
+
+### Instrukcje warunkowe
+
+Do warunkowego wykonywania kodu SQL możemy użyć dwóch konstrukcji:
+
+* IF...ELSE,
+* CASE.
+
+#### Przykład 6
+
+    SELECT nazwisko,
+            zarobki,
+            premia = CASE
+                        WHEN premia IS NOT NULL
+                        THEN premia
+                        ELSE 0
+                    END
+    FROM Pracownicy;
+
+### Instrukcje sterujące
+
+Do wykonywania pętli można też użyć poleceń WHILE, BREAK, CONTINUE oraz bloku BEGIN...END.
+
+#### Przykład 7
+
+Poniższy skrypt dokonuje wielkokronej podwyżki zarobków pracowników o 10% tak, aby średnie podstawowe zarobki wynosiły przynajmniej 3000 zł, przy czym nie może zostać przekroczony budżet na pensje o wysokości 35000zl.
+
+    SELECT *
+    INTO   Pracownicy_kopia
+    FROM   Pracownicy;
+
+
+    WHILE (SELECT AVG(placa)
+      FROM   Pracownicy_kopia) < 3000
+    BEGIN
+        UPDATE Pracownicy_kopia
+        SET    placa = placa * 1.1;
+
+        IF (SELECT SUM(placa + ISNULL(dod_funkc, 0))
+                FROM   Pracownicy_kopia) > 35000
+            BEGIN
+                PRINT 'Nie stac nas na dalsze podwyzki!';
+                BREAK;
+            END;
+        ELSE
+            CONTINUE;
+    END;
+
+    PRINT 'Podwyzki zakonczone.';
+
+
+## Procedury składowane
+
+Procedury składowane są to prekompilowane wyrażenia SQL, które są przechowywane na serwerze. Procedury:
+
+* nie mogą zawierać poleceń CREATE, TRIGGER, PROCEDURE, DEFAULT ORAZ RULE,
+* pozwalają na definiowanie logiki bazy danych (logika aplikacji, logika przetwarzania),
+* dostarczają mechanizmy bezpieczeństwa,
+* mogą być uruchamiane automatycznie przy starcie systemu (procedura musi być umieszczona w bazie master, sp_procoption = TRUE),
+* mogą być zagnieżdżone (@@NESTLEVEL przechowuje poziom zagnieżdżenia),
+* mogą poprawić wydajność (prekompilacja),
+* mogą zredukować obciążenia sieci,
+* mogą mieć parametry wejściowe i wyjściowe (lokalne zmienne procedury).
+
+### Tworzenie
+
+    CREATE PROC [ EDURE ] procedure_name [ ; number ] 
+        [ { @parameter data_type } 
+            [ VARYING ] [ = default ] [ OUTPUT ] 
+        ] [ ,...n ] 
+    [ WITH 
+        { RECOMPILE | ENCRYPTION | RECOMPILE , ENCRYPTION } ] 
+    [ FOR REPLICATION ] 
+    AS sql_statement [ ...n ]
+
+### Modyfikacja i usuwanie 
+
+    ALTER PROC nazwa_procedury tresc_procedury;
+    DROP PROC nazwa_procedury;
+
+### Wywołanie
+
+    [ [ EXEC [ UTE ] ] 
+        { 
+            [ @return_status = ] 
+                { procedure_name [ ;number ] | @procedure_name_var 
+        } 
+        [ [ @parameter = ] { value | @variable [ OUTPUT ] | [ DEFAULT ] ] 
+        [ ,...n ] 
+    [ WITH RECOMPILE ] 
+
+### Obsługa błędów
+
+Do obsługi błędów możemy użyć szeregu funkcji, w zależności od naszych potrzeb.
+
+Funkcja RAISERROR() generuje komunikat o błędzie i rozpoczyna przetwarzanie błędu w sesji, np.:
+
+    RAISERROR('Komunikat o bledzie',16,1);
+
+Aby przechwytywać błędy możemy użyć konstrukcji TRY...CATCH:
+
+    BEGIN TRY  
+        { sql_statement | statement_block }  
+    END TRY  
+    BEGIN CATCH  
+        [ { sql_statement | statement_block } ]  
+    END CATCH  
+    [ ; ]
+
+Poniższe funkcje możemy użyć w konstrukcji TRY...CATCH:
+
+* ERROR_NUMBER() zwraca numer błędu,
+* ERROR_SEVERITY() zwraca istotność błędu,
+* ERROR_STATE() zwraca numer stanu błędu,
+* ERROR_PROCEDURE() zwraca nazwę procedury składowanej lub wyzwalacza, w którym wystąpił błąd,
+* ERROR_LINE() zwraca numer linii wewnątrz procedury, gdzie wystąpił błąd,
+* ERROR_MESSAGE() zwraca kompletny tekst komunikatu o błędzie; tekst zawiera podane wartości dla dowolnych parametrów zastępowalnych, takich jak długości, nazwy obiektów lub czasy.
+
+#### Przykład 8
+
+Procedura kierownik zwraca jako parametr wyjściowy nazwisko kierownika projektu, którego numer jest podany jako parametr wejściowy. Procedura wyrzuca błąd w przypadku, jeśli projekt o danym numerze nie istnieje:
+
+    CREATE PROCEDURE kierownik @nr_proj  INT,
+                           @nazwisko VARCHAR(20) OUTPUT
+    AS
+        BEGIN TRY
+            IF EXISTS (SELECT *
+                   FROM   Projekty
+                   WHERE  id = @nr_proj)
+                BEGIN
+                    SELECT @nazwisko = nazwisko
+                    FROM   Pracownicy
+                    WHERE  id = (SELECT kierownik
+                             FROM   Projekty
+                             WHERE  id = @nr_proj);
+                END;
+            ELSE
+                RAISERROR('Nie ma takiego projektu', 11, 1);
+        END TRY
+        BEGIN CATCH
+            SELECT ERROR_NUMBER() AS 'NUMER BLEDU',
+               ERROR_MESSAGE() AS 'KOMUNIKAT';
+        END CATCH;
+
+Wywołanie bez obsługi błędów:
+
+    DECLARE @nazw VARCHAR(20);
+    EXEC kierownik,
+            10,
+            @nazw OUTPUT;
+    PRINT @nazw;
+
+Wywołanie z obsługą błędów:
+
+    DECLARE @nazw VARCHAR(20);
+    EXEC kierownik,
+        100,
+        @nazw OUTPUT;
+    PRINT @nazw;
+
+#### Przykład 9
+
+Procedura sprawdz wywłuje procedure wstaw i przechwytuje ewentualny błąd zwrócony przez tę procedurę:
+
+    CREATE TABLE tmp(nr INT); --tabela pomocnicza
+
+
+    CREATE PROCEDURE wstaw @nr INT
+    AS
+        IF NOT EXISTS (SELECT *
+                        FROM tmp
+                        WHERE nr = @nr)
+            INSERT INTO tmp
+            VALUES (@nr);
+        ELSE 
+            RAISERROR('juz jest taki numer', 11 ,1);
+
+    
+    CREATE PROCEDURE sprawdz @nr INT
+    AS
+        BEGIN TRY
+            EXEC wstaw
+                @nr;
+            PRINT 'wstawilem wierszy: ' +
+            CAST(@@ROWCOUNT AS VARCHAR(10));
+        END TRY;
+        BEGIN CATCH
+            PRINT 'nie wstawilem wierszy, bo: ' + CAST(ERROR_NUMBER() AS VARCHAR(20)) + ' ' + ERROR_MESSAGE();
+        END CATCH;
+
+    PRINT 'i dzialam dalej';
+
+Wywołanie:
+
+    sprawdz 1;
+
+RAISERROR() nie powoduje przerwania działania procedury. Aby przerwać procedurę należy użyć np. RETURN.
+
+### Odczytanie definicji procedury
+
+Aby uzyskać treść polecenia definiującego daną procedurę,należy odwołać się widoków systemowych sys.sysobjects oraz sys.syscomments, przy czym interesują nas wiersze o wartościach kolumny xtype z widoku sys.sysobjects równych P.
+
+#### Przykład 10
+
+Wyświetlenie zawartości procedury kierownik:
+
+    SELECT c.text
+        FROM   sys.sysobjects o 
+        JOIN sys.syscomments c
+            ON c.id = o.id 
+    WHERE  xtype = 'P'
+        AND name = 'kierownik';
