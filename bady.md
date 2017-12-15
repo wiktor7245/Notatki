@@ -1372,3 +1372,40 @@ Składnia:
     [ ; ]
 
 #### Przykład 3
+
+Funkcja zwraca listę osób zatrudnionych na stanowisku podanym jako parametr wejściowy; jeśli stanowisko podano błędnie lub wcale, zwracana jest lista wszystkich osób:
+
+    CREATE FUNCTION OsobyNaStanowisku2
+    (
+        @s VARCHAR(20)
+    )
+        RETURNS @nazwiska TABLE(nazwisko VARCHAR(20))
+    AS
+    BEGIN
+        IF @s IN ('profesor', 'adiunkt', 'doktorant', 'sekretarka', 'techniczny')
+            INSERT INTO @nazwiska
+                SELECT nazwisko
+                FROM   Pracownicy
+                WHERE  stanowisko = @s;
+        ELSE
+            INSERT INTO @nazwiska
+                SELECT nazwisko
+                FROM   Pracownicy;
+            RETURN;
+    END;
+
+Wywołanie:
+
+    SELECT *
+    FROM OsobyNaStanowisku2('doktorant');
+
+### CROSS APPLY, OUTER APPLY
+
+Poza standarowymi typami złączeń INNER JOIN I OUTER JOIN, mamy do dyspozycji dwa dodatkowe bazujące na operatorze APPLY. Dedykowane są dla wyrażeń tabelarycznych, w szczególności funckji.
+
+Złączenia typu CROSS APPLY lub OUTER APPLY stosujemy w sytuacji, gdy chcemy wielokrotnie uruchomić funkcję tabelaryczną dla parametru pobranego z tabeli.
+
+* Operator APPLY pozwala na połączenie dwóch wyrażeń tablicowych (table expressions).
+* Wyrażenia tablicowe jest wywołane dla każdego wiersza z lewej strony operatora.
+* Posiada dwie formy:
+    * CROSS APPLY -
