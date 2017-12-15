@@ -1462,3 +1462,41 @@ Dla każdego stanowiska wybierz dwóch najlepiej zarabiających pracowników:
 
 * Real life example, when to use OUTER / CROSS APPLY in SQL - https://stackoverflow.com/a/9275865
 (oraz przykład na 2 tabelach - https://stackoverflow.com/a/28654574)
+
+#### Kursory
+
+Kursor jest mechanizmem pozwalającym obsłużyć zbiór zawierający wiele wierszy danych (generowany np. poleceniem SELECT). Jak wskaźnik przebiega on po kolejnych krotkach ze zbioru danych, pozwalając wykonywać operacje na tych krotkach. Najczęstrzą operacją jest pobranie aktualnie wskazywanej krotki poleceniem FETCH.
+
+Wyróżniamy dwa typy kursorów:
+* niejawne - tworzenie automatycznie dla poleceń: INSERT, UPDATE, DELETE i zapytań SELECT INTO,
+* jawne - deklarowane przez programistę.
+
+### Tworzenie
+
+Ogólna składnia tworzenia kursora jest następująca:
+
+    DECLARE cursor_name CURSOR [ LOCAL | GLOBAL]
+        [ FORWARD_ONLY | SCROLL]
+        [ STATIC | KEYSET | DYNAMIC | FAST_FORWARD ]
+        [ READ_ONLY | SCROLL_LOCKS | OPTIMISTIC ]
+        [ TYPE_WARNING ]
+        FOR select_statement
+        [ FOR UPDATE [ OF column_name [ ,... ] ] ]
+    [;]
+
+gdzie:
+
+* LOCAL oznacza, że do kursora będzie można odwołać się wyłącznie z bieżacej procedury wsadowej, procedury składowanej lub wyzwalacza,
+* GLOBAL oznacza zakres kursora jako równy sesji użytkownika,
+* FORWARD_ONLY - określa, że kursor będzie mógł być "przesuwany" jedynie od pierwszego do ostaniego rekordu. Jednym sposobem pobrania danych poprzez tak zdeklarowny kursor jest wykonanie polecenia FETCH NEXT,
+* SCROLL umożliwia odwoływanie się do dowolnych rekordów zwróconych przez kursor,
+* STATIC powoduje utworzenie tymczasowej tabeli (w bazie tempdb) przechowującej rekordy kursora. Zmiany w tabeli źródłowej, które nastąpiły po jego zadeklarowaniu nie będą widoczne przez kursor,
+* KEYSET powoduje utworzenie tymczasowej tabeli keyset (w bazie tempdb) przechowującej identyfikującej identyfikatory tabeli źródłowej kursora. Aktualizacje rekordów, których identyfikatory zostały zapisane w tabeli keyset, będą widoczne poprzez kursor, natomiast dodanie nowych wierszy do tabeli źródłowej - nie,
+* DYNAMIC - powoduje, że wszystkie zmiany w tabeli źródłowej będą widoczne poprzez kursor,
+* FAST_FORWARD powouje utworzenie kursora typu FORWARD_ONLY umożliwiającego jedynie odczytywanie danych i zoptymalizowanego pod kątem odczytywania kolejnych rekordów.
+
+#### Użycie
+
+Do zadeklarowania kursora, aby z niego skorzystać nalezy:
+
+1. 
