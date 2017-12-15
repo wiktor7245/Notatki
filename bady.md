@@ -1499,4 +1499,50 @@ gdzie:
 
 Do zadeklarowania kursora, aby z niego skorzystać nalezy:
 
-1. 
+1. poleceniem OPEN otworzyć kursor, który zbierze krotki poleceniem zdefiniowanym w jego ciele,
+2. obsłużyć krotki w pożądany dla siebie sposób (FETCH NEXT)
+3. poleceniem CLOSE zamknąć kursor (zwolnienie ewentualnych blokad, kursor, kursor można jeszcze w razie potrzeby ponownie otworzyć),
+4. poleceniem DEALLOCATE usunąć refenecję na kursor (przy usunięciu ostatniej, MSSQL zwalnia przydzielone zasoby związane z kursorem).
+
+Funkcja @@FETCH_STATUS zwraca status (wartość INTEGER) ostatnio wykonanego polecena FETCH któregokolwiek z aktualnie otwartych kursorów. Znaczenia zwracanych wartości są następujące:
+
+* 0 - polecenie FETCH zakończyło się pomyślnie,
+* -1 - polecenie FETCH nie powiodło się lub wiersz znalazł się poza zbiorem wynikowym,
+* -2 - pobrany wiersz został utracony,
+* -9 - kursor nie pobiera danych.
+
+#### Przykład 1
+
+Zdaniem poniższego kursora jest wypisanie listy nazwisk pracowników wraz z ich zarobkami:
+
+    DECLARE @nazwisko VARCHAR(100);
+    DECLARE @placa    MONEY;
+
+    DECLARE kursor CURSOR                 -- deklaracja zbioru, na którym kursor działa
+    FOR SELECT nazwisko, 
+           placa
+        FROM   Pracownicy;
+
+    OPEN kursor;                          -- otwórz kursor (ustaw się przed pierwszym wierszem)
+
+    FETCH NEXT                            -- pobierz kolejny wiersz z kursora
+    FROM  kursor 
+    INTO  @nazwisko, 
+      @placa;
+
+    WHILE @@FETCH_STATUS = 0                                             -- dopóki udaje się pobrać kolejny wiersz
+    BEGIN
+        PRINT @nazwisko + ' zarabia: ' + CAST(@placa AS CHAR(8));    -- wypisz pobrane wartości
+
+        FETCH NEXT                                                   -- przesuń się na kolejny wiersz
+        FROM  kursor 
+        INTO  @nazwisko, 
+              @placa;
+    END;
+
+    CLOSE kursor;                         -- kursor należy zamknąć i zwolnić pamięć
+    DEALLOCATE kursor;
+
+#### Zastosowanie
+
+Jak wspomniano na początku, kursor przebiega po wszstkich rekordach wyniku zapytania. Przede wszystkim kursor może posłużyć do wygenerowania prostych lub bardziej złożonych raportów (np w PRINT włożyć HTML). Można także wczytać z bazy dużą porcję danych, a następnie wrzucić ją do zmiennych, edycję, wyświetlenie w aplikacji, itd.
