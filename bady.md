@@ -1408,4 +1408,57 @@ Złączenia typu CROSS APPLY lub OUTER APPLY stosujemy w sytuacji, gdy chcemy wi
 * Operator APPLY pozwala na połączenie dwóch wyrażeń tablicowych (table expressions).
 * Wyrażenia tablicowe jest wywołane dla każdego wiersza z lewej strony operatora.
 * Posiada dwie formy:
-    * CROSS APPLY -
+    * CROSS APPLY - zwraca tylko wiersze z zewnętrznej tabeli (lewa strona) jeżeli istnieje odpowiednik w tabeli wewnętrzenej (prawa strona),
+    * OUTER APPLY - zwraca wszystkie rekordy z tabeli zewnętrznej (lewa strona) niezależnie czy istniee odpowienik w tabeli wewnętrznej (prawa strona).
+
+#### Przykład 4
+
+    SELECT S.nazwa, C.nazwisko
+    FROM Stanowiska S
+        CROSS APPLY (SELECT *
+                  FROM   Pracownicy P
+                  WHERE  p.stanowisko = s.nazwa) C;
+
+Porównaj z:
+
+    SELECT S.nazwa, 
+       P.nazwisko
+    FROM   Stanowiska S
+       JOIN Pracownicy P 
+         ON p.stanowisko = s.nazwa;
+
+#### Przykład 5
+
+SELECT S.nazwa, C.nazwisko
+FROM Stanowiska S
+     OUTER APPLY (SELECT *
+                  FROM   Pracownicy P
+                  WHERE  p.stanowisko = s.nazwa) C;
+
+Porównaj z:
+
+    SELECT S.nazwa, 
+       P.nazwisko
+    FROM   Stanowiska S
+       LEFT JOIN Pracownicy P 
+              ON p.stanowisko = s.nazwa;
+
+#### Przykład 6
+
+Dla każdego stanowiska wybierz dwóch najlepiej zarabiających pracowników:
+
+    SELECT S.nazwa, 
+       C.nazwisko, 
+       C. placa
+    FROM   Stanowiska S
+       CROSS APPLY (SELECT   TOP 2 *
+                    FROM     Pracownicy P
+                    WHERE    p.stanowisko = s.nazwa
+                    ORDER BY placa DESC) C; 
+
+### Dodatkowa lektura
+
+* Function vs. Stored Procedure in SQL Server - https://stackoverflow.com/a/1179778
+
+* Real life example, when to use OUTER / CROSS APPLY in SQL - https://stackoverflow.com/a/9275865
+(oraz przykład na 2 tabelach - https://stackoverflow.com/a/28654574)
