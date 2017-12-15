@@ -1266,3 +1266,109 @@ Wyświetlenie zawartości procedury kierownik:
             ON c.id = o.id 
     WHERE  xtype = 'P'
         AND name = 'kierownik';
+
+## Funkcje użytkownika
+
+## Skalarne
+ 
+Zwracaną jedną wartość typu prostego
+
+Składnia:
+
+    CREATE FUNCTION [schema_name.] function_name
+    ([{@parameter_name [AS][ type_schema_name. ]
+    parameter_data_type
+        [ = default]}
+        [,...n]
+        ]
+    )
+    RETURNS return_data_type
+        [ WITH <function_option> [ ,...n ] ]
+        [ AS ]
+        BEGIN 
+                function_body 
+            RETURN scalar_expression
+        END
+    [ ; ]
+
+#### Przykład 1
+
+Funkcja zwraca zarobek roczny przy podanej na wejściu płacy miesięcznej:
+
+    CREATE FUNCTION Roczne
+    (
+        @placa MONEY
+    )
+    RETURNS MONEY
+    AS
+    BEGIN
+        RETURN @placa * 12;
+    END;
+
+Wywołanie funkcji z parametrem podanym przez użytkownika:
+
+    SELECT dbo.Roczne(2300);
+
+Wywołanie funckji z parametrem odczytanym z tabeli:
+
+    SELCET nazwisko,
+            dbo.Roczne(placa) AS 'roczne zarobki'
+    FROM Pracownicy;
+
+### Tablicowe proste
+
+Na funkcje tablicowe można spojrzeć jak na sparametryzowane widoki
+
+Składnia:
+
+    CREATE FUNCTION [ schema_name. ] function_name 
+    ( [ { @parameter_name [ AS ] [ type_schema_name. ] parameter_data_type 
+        [ = default ] } 
+        [ ,...n ]
+    ]
+    )
+    RETURNS TABLE
+        [ WITH <function_option> [ ,...n ] ]
+        [ AS ]
+        RETURN [ ( ] select_stmt [ ) ]
+    [ ; ]
+
+#### Przykład 2
+
+Funkcja zwraca listę osób zatrudnionych na stanowisku podanym jako parametr wejściowy:
+
+    CREATE FUNCTION OsobyNaStanowisku
+    (
+        @s VARCHAR(20)
+    )
+        RETURNS TABLE
+    AS
+        RETURN SELECT nazwisko
+                FROM Pracownicy
+                WHERE stanowisko = @s;
+
+Wywołanie:
+
+    SELECT *
+    FROM OsobyNaStanowisku('doktorant');
+
+### Tablicowe złożone
+
+Składnia:
+
+    CREATE FUNCTION [ schema_name. ] function_name 
+        ( [ { @parameter_name [ AS ] [ type_schema_name. ] parameter_data_type 
+            [ = default ] } 
+            [ ,...n ]
+    ]
+    )
+    RETURNS @return_variable TABLE < table_type_definition >
+        [ WITH <function_option> [ ,...n ] ]
+        [ AS ]
+        BEGIN 
+                function_body 
+        RETURN
+        END
+    [ ; ]
+
+#### Przykład 3
