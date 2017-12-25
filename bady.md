@@ -1546,3 +1546,51 @@ Zdaniem poniższego kursora jest wypisanie listy nazwisk pracowników wraz z ich
 #### Zastosowanie
 
 Jak wspomniano na początku, kursor przebiega po wszstkich rekordach wyniku zapytania. Przede wszystkim kursor może posłużyć do wygenerowania prostych lub bardziej złożonych raportów (np w PRINT włożyć HTML). Można także wczytać z bazy dużą porcję danych, a następnie wrzucić ją do zmiennych, edycję, wyświetlenie w aplikacji, itd.
+
+## Tworzenie aplikacji bazodanowej
+
+### Python
+
+https://gist.github.com/andre-wojtowicz/d63df4e212ecc07a84f9e9c4f8f7b5fb
+
+Skrypt mssql-example.py łączy się z bazą MSSQL. Aby go uruchomić, należy mieć zainstalowane biblioteki pyodbc oraz pandas:
+
+    pip install --user pyodbc pandas
+
+W przypadku Ubuntu należy najpierw zainstalować libodbc1 unixodbc unixodbc-dev odbcinst oraz msodbcsql. Opis instalacji msodbcsql znajduje się na stronie Microsoft Docs. W skrypcie należy zmienić nazwę sterownika na ODBC Driver 13 for SQL Server. Alternatywnie można skorzystać z innych sterowników, np. FreeTDS, jednak instalacja i konfiguracja jest poza zakresem tego materiału.
+
+Następnie w skrypcie można zdefiniować adres serwera, nazwę bazy, itp. Skrypt najpierw wyświetla dostępne tabele w bazie oraz wyświetla zawartość pierwszej z tabel:
+
+        $ python mssql-example.py
+
+                        Table name
+        1                 Filmy
+        2               Gatunki
+        3            Pracownicy
+        4      Pracownicy_kopia
+        5              Projekty
+        6            Realizacje
+        7            Stanowiska
+        8            Uczestnicy
+        9   trace_xe_action_map
+        10   trace_xe_event_map
+
+        Filmy:
+                   tytul  gatunek     cena  czas            rezyser
+        1  Od zmierzchu do switu        1  54.0000   100  Quentin Tarantino
+        2                 Spioch        3  50.0000   110        Woody Allen
+        3        Leon Zawodowiec        1  60.0000   100         Luc Besson
+        4             Sprzedawcy        3  41.0000    90        Kevin Smith
+        5        W pogoni za Amy        3  40.0000    95        Kevin Smith
+
+
+### C++
+
+https://github.com/andre-wojtowicz/qt-sql-example 
+
+W poniższym linku jest tylko sam kod, który należy potem skompilować przez qt albo ściągnąć gotową apkę
+
+## ORM - mapowanie obiektowo-relacyjne 
+
+Poczytać o tym, przyda się do projektu z C#
+
