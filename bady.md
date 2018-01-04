@@ -1594,3 +1594,99 @@ W poniższym linku jest tylko sam kod, który należy potem skompilować przez q
 
 Poczytać o tym, przyda się do projektu z C#
 
+
+## Wyzwalacze
+
+Wyzwalacze DML (procedury wyzwalane, ang. triggers):
+* to procedury uruchamiane **automatycznie** w wyniku zajścia zdarzenia INSERT, UPDATE lub DELETE;
+* uruchamiane są po (AFTER/FOR) lub zamiast (INSTEAD OF) zdarzenia INSERT, UPDATE lub DELETE;
+* są przypisane do tabeli (zawsze tylko jednej) lub widoku i automatycznie usuwane wraz z ich usunięciem;
+* wykorzystują systemowe tabele, tj. inserted i deleted;
+* nie mają parametrów;
+* mogą być zagnieżdżone - jeżeli w sp_configure opcja nested triggers ma wartość ON:
+
+        EXEC sp_configure 'nested triggers', 1
+        reconfigure
+
+Jeżeli w sp_dboption ustawimy recursive triggers, to możliwe jest tworzenie wyzwalaczy rekurencyjnych:
+
+        ALTER DATABASE databasename
+        SET RECURSIVE_TRIGGERS ON | OFF
+
+Z jedną tabelą może być powiązane wiele wyzwalaczy.
+
+### Zastosowanie
+
+* Kaskadowe aktualizowanie danych w powiązanych tabelach, wyznaczanie wartości wyliczanych.
+* Rozszerzenie możliwości definiowania więzów integralności; np. wyzwalacze umożliwiają sprawdzanie poprawności danych na podstawie wartości przechowywanych w dowolnych tabelach
+(w przeciwieństwie do ograniczenia CHECK, za pomocą którego możemy odwołać się jednynie do bieżacej tabeli).
+* Jednocześnie sprawdzanie danych zmodyfikowanych w dowolnej liczbie wierszy tabeli.
+* Wywoływanie predefiniowanych lub zdefiniowanych przez użytkownika komunikatów błędu.
+* Monitorowanie aktywności użytkowników.
+* Modyfikacje danych w bazach niespełniających wymogów trzeciej postaci normalnej. W bazach tego typu prawdopodobnie przechowywane są informacje (redundantne) i modyfikacja np. numeru telefonu w jednej tabeli może wiązać się z koniecznością zmiany tego numeru w innych tabelach.
+
+### Składnia
+
+        CREATE TRIGGER [ schema_name. ]trigger_name
+        ON { table | view}
+        [ WITH <dml_trigger_option> [ ,... ] ]
+        { FOR | AFTER | INSTEAD OF }
+        { [ INSERT ] [ , ] [ UPDATE ] [ , ] [ DELETE ] }
+        [ WITH APPEND ]
+        [ NOT FOR REPLICATION ]
+        AS { sql_statement [ ; ] [ ,... ] }
+
+### Przykłady
+
+#### Przykład 1
+
+Oba poniższe wyzwalacze blokują możliwość dodawania, usuwania i modyfikacji wierszy w tabeli Stanowiska.
+
+        CREATE TRIGGER t_przyklad_1_1 ON Stanowiska
+        AFTER INSERT, UPDATE, DELETE
+        AS
+            PRINT 'uzytkownik ' + USER_NAME() + ' probowal usunac wiersze:';
+            SELECT * FROM deleted;
+
+            PRINT 'uzytkownik ' + USER_NAME() + ' probowal wstawic wiersze:';
+            SELECT * FROM inserted;
+
+            ROLLBACK;
+        GO
+
+        
+        CREATE TRIGGER t_przyklad_1_2 ON stanowiska
+        INSTEAD OF INSERT, UPDATE, DELETE
+        AS
+            PRINT 'uzytkownik ' + USER_NAME() + ' probowal usunac wiersze:';
+            SELECT * FROM deleted;
+
+            PRINT 'uzytkownik '+USER_NAME()+' probowal wstawic wiersze:';
+            SELECT * FROM inserted;
+
+        GO
+
+
+Przykładowe wywołanie wyzwalacza:
+
+        UPDATE Stanowiska
+            SET placa_min = placa_min + 100
+        WHERE  placa_min < 2000; 
+
+#### Przykład 2
+
+Po utworzeniu wyzwalacza jest on automatycznie włączony. Aby ręcznie wł/wył wyzwalacz:
+
+        ALTER TABLE stanowiska ENABLE TRIGGER t_przyklad_1_1;
+        ALTER TABLE stanowiska DISABLE TRIGGER t_przyklad_1_1;
+
+#### Przykład 3
+
+Wyszukanie wyzwalaczy związanych z daną tabelą:
+
+        SELECT so1.name
+        FROM   sysobjects so1
+            JOIN sysobjects so2
+            ON so1.parent_obj = so2.id
+        WHERE  so1.type = 'TR'
+            AND so2.name = 'Stanowiska';
